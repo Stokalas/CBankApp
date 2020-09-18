@@ -4,17 +4,32 @@
 #include "authentication.h"
 #include "utilities.h"
 
-/*Main authentication function, which calls other functions according to the choice of the user*/
-int authentication()
+/*Main authentication function, which calls other functions according to the choice of the user and returns folder of logged in user*/
+FILE* authentication()
 {
+    char username[20];
     while(1){
-        int alreadyRegistered = checkIfAlreadyRegistered();/*Taking user input*/
+        int alreadyRegistered = userInput();/*Taking user input*/
         if (alreadyRegistered == 3) break;/*If it returned 3, quiting app*/
         if(alreadyRegistered){/*If it was one allowing to login*/
-            if(login()==1)
+            strcpy(username, login());/*Getting the username that logged in*/
+            if(strcmp(username, ""))
             {
-                printf("login succesfull\n");
-                break;/*Quiting, because no further functionality for now*/
+                username, username[strlen(username)-1] = 0;
+                strncat(username, ".txt", 4);
+                FILE* userData = fopen(username, "r+");
+                if(userData == NULL){
+                    printf("Failed to open the file of logged user, creating new file...\n");
+                    delay(3);
+                    userData = fopen(username, "w");
+                    if(userData == NULL){
+                        printf("Failed to create new file, logging off..");
+                        continue;
+                    }
+                    fprintf(userData,"%s", "0");
+                }
+                clrscr();
+                return(userData);
             }else
             {
                 printf("login unsuccesfull\n");
@@ -27,7 +42,7 @@ int authentication()
 }
 
 /*This function allows user to choose if he wants to login or register*/
-int checkIfAlreadyRegistered()
+int userInput()
 {
     int choice;/*Saves input of the user, which function returns*/
     clrscr();
@@ -38,7 +53,7 @@ int checkIfAlreadyRegistered()
 }
 
 /*This function allows to enter username and password and checks if this info matches one in database*/
-int login(){
+char* login(){
     char username[20];
     char password[20];
     char databaseLine[20];/*Used to read from database*/
@@ -49,7 +64,8 @@ int login(){
     /*Checking if it was possible to open text file*/
     if(database == NULL){
         printf("Failed to access database\n");
-        return -1;
+        delay(3);
+        return NULL;
     }
 
     while(1){
@@ -63,7 +79,7 @@ int login(){
     /*If 0 entered as username, returns to authentication*/
     if(!strcmp(username, "0")){
         fclose(database);
-        return -1;
+        return NULL;
     }
 
     strncat(username, "\n",1);/*Adding \n at the end of both inputs, since ones read from file has it at the end*/
@@ -78,9 +94,10 @@ int login(){
         {
            usernameFound = 1;/*Username found, no need to print message that such user does not exist*/
            fgets(databaseLine, sizeof(databaseLine), database);/*Taking password*/
-           if(!strcmp(password, databaseLine)){/*If passwords match, login succesfull, returning from function with 1*/
+           if(!strcmp(password, databaseLine)){/*If passwords match, login succesfull, string with username*/
              fclose(database);
-             return 1;
+             char *temp = username; /*variables are allocated on the stack, by default. But declaring a pointer, the value the pointers points to is allocated on the heap, and the heap is not cleared when the function ends.*/
+             return temp;
            }else{/*If they don't, printing message and after 3 secons allowing to input logins again*/
                printf("Incorrect Password\n");
                delay(3);
@@ -115,6 +132,11 @@ int registerNew()
         {
             return -1;
         }
+        if(checkIfUserExists(username)){/*If such user exists returning*/
+            printf("This user is already registered!");
+            delay(3);
+            return -1;
+        }
         printf("Enter your password: \n");
         scanf("%s", password);
         clrscr();
@@ -133,7 +155,11 @@ int registerNew()
             fprintf(database, "%s", "\n");
             fclose(database);
             clrscr();
-            printf("Account with username %s succesfully registered!\n", username);/*Printing message and after 3 seconds going to authentication*/
+            printf("Account succesfully registered:%s", username);/*Printing message and after 3 seconds going to authentication*/
+            strncat(username, ".txt", 4);
+            FILE* newUser = fopen(username, "w");
+            fprintf(newUser, "%s", "0");
+            fclose(newUser);
             delay(3);
             return 1;
         }
@@ -143,4 +169,32 @@ int registerNew()
 
 
 
+}
+
+/*Used in registration, to ensure that no accounts have same username*/
+int checkIfUserExists(char* username)
+{
+    strncat(username, "\n",1);
+    char databaseLine[20];
+    FILE* database = fopen("logins.txt", "r");
+
+    /*Checking if it was possible to open text file*/
+    if(database == NULL){
+        printf("Failed to access database\n");
+        return NULL;
+    }
+
+    while (fgets(databaseLine, sizeof(databaseLine), database) != NULL)/*While not the end of file*/
+    {
+        if(!strcmp(username, databaseLine))/*Checking if such usernames matches*/
+        {
+            username, username[strlen(username)-1] = 0;
+            fclose(database);
+            return 1;
+        }
+        fgets(databaseLine, sizeof(databaseLine), database);/*If usernames does not match, skipping line of password as well*/
+    }
+    username, username[strlen(username)-1] = 0;
+    fclose(database);
+    return 0; /*if no matches returning 0*/
 }

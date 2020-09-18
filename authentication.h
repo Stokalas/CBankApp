@@ -1,12 +1,14 @@
 #ifndef HEADER_AUTHENTICATION
 #define HEADER_AUTHENTICATION
 
-int authentication();
+FILE* authentication();
 
-int checkIfAlreadyRegistered();
+int userInput();
 
-int login();
+char* login();
 
 int registerNew();
+
+int checkIfUserExists(char* username);
 
 #endif
